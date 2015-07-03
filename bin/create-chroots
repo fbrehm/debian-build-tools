@@ -81,6 +81,16 @@ deb http://repo.pb.local/pb-ubuntu {{distro}}-proposed main non-free contrib
 END
 )
 
+PROXY_FILE_CONTENT=$( cat <<END
+Acquire {
+    http {
+        Proxy "http://proxy:3128/";
+        Proxy::repo.pb.local "DIRECT";
+    };
+};
+END
+)
+
 
 for distro in squeeze wheezy jessie stretch ; do
 
@@ -95,7 +105,7 @@ for distro in squeeze wheezy jessie stretch ; do
     echo -e "[$(date)]: Performing ${GREEN}Debian ${distro}${NORMAL} ..."
 
     if [[ ! -d "${path}" ]] ; then
-        sudo sbuild-createchroot --components=main,non-free,contrib "${distro}" "${path}" http://repo.pb.local/debian
+        sudo sbuild-createchroot --components=main,non-free,contrib "${distro}" "${path}" http://repo.pb.local/debian || continue
         sudo rm -fv "/etc/schroot/chroot.d/${distro}-amd64-sbuild-"*
         echo
     fi
@@ -117,6 +127,53 @@ for distro in squeeze wheezy jessie stretch ; do
     echo "${PB_SRC_LIST_DEBIAN}" | \
         sed -e "s/{{distro}}/${distro}/g" | \
         sudo tee "${pb_sources_list}" >/dev/null
+
+    echo
+    echo "Checking profitbricks keyring ..."
+    if schroot -d / -u root -c source:${chroot} -- dpkg -s profitbricks-keyring >/dev/null 2>&1 ; then
+        :
+    else
+        echo "Adding profitbricks keyring ..."
+        schroot -d / -u root -c source:${chroot} -- apt-get update
+        schroot -d / -u root -c source:${chroot} -- apt-get -y --allow-unauthenticated install profitbricks-keyring
+    fi
+
+done
+
+for distro in trusty utopic vivid wily ; do
+
+    chroot="pb-${distro}"
+    path="${ROOT_PATH}/${chroot}"
+    ini_file="/etc/schroot/chroot.d/${chroot}"
+    sources_list="${path}/etc/apt/sources.list"
+    pb_sources_list="${path}/etc/apt/sources.list.d/profitbricks.list"
+    proxy_file="${path}/etc/apt/apt.conf.d/80proxy"
+
+    echo
+    echo "--------------------------------------------------------------------------"
+    echo -e "[$(date)]: Performing ${GREEN}Ubuntu ${distro}${NORMAL} ..."
+
+    if [[ ! -d "${path}" ]] ; then
+        http_proxy=http://proxy:3128/ sudo sbuild-createchroot --components=main,universe "${distro}" "${path}" http://de.archive.ubuntu.com/ubuntu || continue
+        sudo rm -fv "/etc/schroot/chroot.d/${distro}-amd64-sbuild-"*
+        echo
+    fi
+
+    echo "Updating ${ini_file} ..."
+    echo "${CHROOT_INI_UBUNTU}" | \
+        sed -e "s/{{chroot}}/${chroot}/g" \
+            -e "s|{{path}}|${path}|g"  \
+            -e "s/{{distro}}/${distro}/g" \
+            -e "s/{{vendor}}/Debian/g" | \
+        sudo tee "${ini_file}" >/dev/null
+
+    echo "Updating ${pb_sources_list} ..."
+    echo "${PB_SRC_LIST_UBUNTU}" | \
+        sed -e "s/{{distro}}/${distro}/g" | \
+        sudo tee "${pb_sources_list}" >/dev/null
+
+    echo "Updating ${proxy_file} ..."
+    echo "${PROXY_FILE_CONTENT}" | sudo tee "${proxy_file}" >/dev/null
 
     echo
     echo "Checking profitbricks keyring ..."
