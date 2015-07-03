@@ -160,7 +160,7 @@ for distro in trusty utopic vivid wily ; do
     fi
 
     echo "Updating ${ini_file} ..."
-    echo "${CHROOT_INI_UBUNTU}" | \
+    echo "${CHROOT_INI_DEBIAN}" | \
         sed -e "s/{{chroot}}/${chroot}/g" \
             -e "s|{{path}}|${path}|g"  \
             -e "s/{{distro}}/${distro}/g" \
