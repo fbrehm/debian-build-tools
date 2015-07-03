@@ -7,6 +7,31 @@ if [[ ! -d "${UNION_OVERLAY_DIR}" ]] ; then
     sudo mkdir -pv "${UNION_OVERLAY_DIR}" || exit $?
 fi
 
+safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
+match_lhs=""
+use_color=false
+[[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
+[[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
+[[ -z ${match_lhs}    ]] \
+    && type -P dircolors >/dev/null \
+    && match_lhs=$(dircolors --print-database)
+[[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color=true
+
+# console colors:
+if ${use_color}; then
+    RED="\033[38;5;196m"
+    YELLOW="\033[38;5;226m"
+    GREEN="\033[38;5;46m"
+    BLUE="\033[38;5;27m"
+    NORMAL="\033[39m"
+else
+    RED=""
+    YELLOW=""
+    GREEN=""
+    BLUE=""
+    NORMAL=""
+fi
+
 CHROOT_INI_DEBIAN=$( cat <<END
 [{{chroot}}]
 type=directory
@@ -57,8 +82,7 @@ END
 )
 
 
-#for distro in squeeze wheezy jessie stretch ; do
-for distro in jessie ; do
+for distro in squeeze wheezy jessie stretch ; do
 
     chroot="pb-${distro}"
     path="${ROOT_PATH}/${chroot}"
@@ -68,7 +92,7 @@ for distro in jessie ; do
 
     echo
     echo "--------------------------------------------------------------------------"
-    echo "[$(date)]: Performing Debian ${distro} ..."
+    echo -e "[$(date)]: Performing ${GREEN}Debian ${distro}${NORMAL} ..."
 
     if [[ ! -d "${path}" ]] ; then
         sudo sbuild-createchroot --components=main,non-free,contrib "${distro}" "${path}" http://repo.pb.local/debian
@@ -94,8 +118,21 @@ for distro in jessie ; do
         sed -e "s/{{distro}}/${distro}/g" | \
         sudo tee "${pb_sources_list}" >/dev/null
 
+    echo
+    echo "Checking profitbricks keyring ..."
+    if schroot -d / -u root -c source:${chroot} -- dpkg -s profitbricks-keyring >/dev/null 2>&1 ; then
+        :
+    else
+        echo "Adding profitbricks keyring ..."
+        schroot -d / -u root -c source:${chroot} -- apt-get update
+        schroot -d / -u root -c source:${chroot} -- apt-get -y --allow-unauthenticated install profitbricks-keyring
+    fi
 
 done
+
+echo
+echo "--------------------------------------------------------------------------"
+echo -e "[$(date)]: ${GREEN}Finished${NORMAL}."
 
 
 # vim: ts=4 et softtabstop=4
