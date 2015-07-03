@@ -1,0 +1,53 @@
+#!/bin/bash
+
+ROOT_PATH="/srv/chroots"
+
+safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
+match_lhs=""
+use_color=false
+[[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
+[[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
+[[ -z ${match_lhs}    ]] \
+    && type -P dircolors >/dev/null \
+    && match_lhs=$(dircolors --print-database)
+[[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color=true
+
+# console colors:
+if ${use_color}; then
+    RED="\033[38;5;196m"
+    YELLOW="\033[38;5;226m"
+    GREEN="\033[38;5;46m"
+    BLUE="\033[38;5;27m"
+    NORMAL="\033[39m"
+else
+    RED=""
+    YELLOW=""
+    GREEN=""
+    BLUE=""
+    NORMAL=""
+fi
+
+
+for distro in squeeze wheezy jessie stretch trusty utopic vivid wily ; do
+
+    chroot="pb-${distro}"
+    path="${ROOT_PATH}/${chroot}"
+
+    echo
+    echo "--------------------------------------------------------------------------"
+    echo -e "[$(date)]: Performing ${GREEN}${distro}${NORMAL} ..."
+
+    if [[ ! -d "${path}" ]] ; then
+        echo -e "${RED}Error:${NORMAL}: directory ${RED}${path}${NORMAL} of chroot ${YELLOW}${chroot}${NORMAL} does not exists."
+        continue
+    fi
+    echo -e "Upgrading chroot ${GREEN}${chroot}${NORMAL} ..."
+    schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get dist-upgrade -y"
+
+done
+
+echo
+echo "--------------------------------------------------------------------------"
+echo -e "[$(date)]: ${GREEN}Finished${NORMAL}."
+
+# vim: ts=4 et softtabstop=4
