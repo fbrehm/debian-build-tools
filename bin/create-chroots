@@ -37,6 +37,25 @@ union-overlay-directory=${UNION_OVERLAY_DIR}
 END
 )
 
+SRC_LIST_DEBIAN=$( cat <<END
+deb http://repo.pb.local/debian          {{distro}}         main non-free contrib
+deb http://repo.pb.local/debian          {{distro}}-updates main non-free contrib
+deb http://repo.pb.local/debian-security {{distro}}/updates main non-free contrib
+END
+)
+
+PB_SRC_LIST_DEBIAN=$( cat <<END
+deb http://repo.pb.local/pb-debian {{distro}}          main non-free contrib
+deb http://repo.pb.local/pb-debian {{distro}}-proposed main non-free contrib
+END
+)
+
+PB_SRC_LIST_UBUNTU=$( cat <<END
+deb http://repo.pb.local/pb-ubuntu {{distro}}          main non-free contrib
+deb http://repo.pb.local/pb-ubuntu {{distro}}-proposed main non-free contrib
+END
+)
+
 
 #for distro in squeeze wheezy jessie stretch ; do
 for distro in jessie ; do
@@ -48,10 +67,13 @@ for distro in jessie ; do
     pb_sources_list="${path}/etc/apt/sources.list.d/profitbricks.list"
 
     echo
-    echo "Performing Debian ${distro} ..."
+    echo "--------------------------------------------------------------------------"
+    echo "[$(date)]: Performing Debian ${distro} ..."
 
     if [[ ! -d "${path}" ]] ; then
-        sudo sbuild-createchroot --components=main,non-free,contrib "${distro}" "${path}" http://repo.pb.local/debian && sudo rm -fv "/etc/schroot/chroot.d/${distro}amd64-sbuild-"*
+        sudo sbuild-createchroot --components=main,non-free,contrib "${distro}" "${path}" http://repo.pb.local/debian
+        sudo rm -fv "/etc/schroot/chroot.d/${distro}-amd64-sbuild-"*
+        echo
     fi
 
     echo "Updating ${ini_file} ..."
@@ -61,6 +83,16 @@ for distro in jessie ; do
             -e "s/{{distro}}/${distro}/g" \
             -e "s/{{vendor}}/Debian/g" | \
         sudo tee "${ini_file}" >/dev/null
+
+    echo "Updating ${sources_list} ..."
+    echo "${SRC_LIST_DEBIAN}" | \
+        sed -e "s/{{distro}}/${distro}/g" | \
+        sudo tee "${sources_list}" >/dev/null
+
+    echo "Updating ${pb_sources_list} ..."
+    echo "${PB_SRC_LIST_DEBIAN}" | \
+        sed -e "s/{{distro}}/${distro}/g" | \
+        sudo tee "${pb_sources_list}" >/dev/null
 
 
 done
