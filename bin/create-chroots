@@ -76,8 +76,8 @@ END
 )
 
 PB_SRC_LIST_UBUNTU=$( cat <<END
-deb http://repo.pb.local/pb-ubuntu {{distro}}          main non-free contrib
-deb http://repo.pb.local/pb-ubuntu {{distro}}-proposed main non-free contrib
+deb http://repo.pb.local/pb-ubuntu {{distro}}          main restricted
+deb http://repo.pb.local/pb-ubuntu {{distro}}-proposed main restricted
 END
 )
 
