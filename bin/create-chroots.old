@@ -1,0 +1,195 @@
+#!/bin/bash
+
+ROOT_PATH="/srv/chroots"
+UNION_OVERLAY_DIR="/var/tmpfs"
+
+if [[ ! -d "${UNION_OVERLAY_DIR}" ]] ; then
+    sudo mkdir -pv "${UNION_OVERLAY_DIR}" || exit $?
+fi
+
+safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
+match_lhs=""
+use_color=false
+[[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
+[[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
+[[ -z ${match_lhs}    ]] \
+    && type -P dircolors >/dev/null \
+    && match_lhs=$(dircolors --print-database)
+[[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color=true
+
+# console colors:
+if ${use_color}; then
+    RED="\033[38;5;196m"
+    YELLOW="\033[38;5;226m"
+    GREEN="\033[38;5;46m"
+    BLUE="\033[38;5;27m"
+    NORMAL="\033[39m"
+else
+    RED=""
+    YELLOW=""
+    GREEN=""
+    BLUE=""
+    NORMAL=""
+fi
+
+CHROOT_INI_DEBIAN=$( cat <<END
+[{{chroot}}]
+type=directory
+description={{vendor}} {{distro}} amd64 autobuilder
+directory={{path}}
+groups=root,sbuild
+root-groups=root,sbuild
+profile=sbuild
+source-groups=root,sbuild
+source-root-groups=root,sbuild
+union-type=aufs
+union-overlay-directory=${UNION_OVERLAY_DIR}
+END
+)
+
+CHROOT_INI_UBUNTU=$( cat <<END
+[{{chroot}}]
+type=directory
+description={{vendor}} {{distro}} amd64 autobuilder
+directory={{path}}
+groups=root,sbuild
+root-groups=root,sbuild
+profile=sbuild
+source-groups=root,sbuild
+source-root-groups=root,sbuild
+union-type=overlayfs
+union-overlay-directory=${UNION_OVERLAY_DIR}
+END
+)
+
+SRC_LIST_DEBIAN=$( cat <<END
+deb http://repo.pb.local/debian          {{distro}}         main non-free contrib
+deb http://repo.pb.local/debian          {{distro}}-updates main non-free contrib
+deb http://repo.pb.local/debian-security {{distro}}/updates main non-free contrib
+END
+)
+
+PB_SRC_LIST_DEBIAN=$( cat <<END
+deb http://repo.pb.local/pb-debian {{distro}}          main non-free contrib
+deb http://repo.pb.local/pb-debian {{distro}}-proposed main non-free contrib
+END
+)
+
+PB_SRC_LIST_UBUNTU=$( cat <<END
+deb http://repo.pb.local/pb-ubuntu {{distro}}          main restricted
+deb http://repo.pb.local/pb-ubuntu {{distro}}-proposed main restricted
+END
+)
+
+PROXY_FILE_CONTENT=$( cat <<END
+Acquire {
+    http {
+        Proxy "http://proxy:3128/";
+        Proxy::repo.pb.local "DIRECT";
+    };
+};
+END
+)
+
+
+for distro in squeeze wheezy jessie stretch ; do
+
+    chroot="pb-${distro}"
+    path="${ROOT_PATH}/${chroot}"
+    ini_file="/etc/schroot/chroot.d/${chroot}"
+    sources_list="${path}/etc/apt/sources.list"
+    pb_sources_list="${path}/etc/apt/sources.list.d/profitbricks.list"
+
+    echo
+    echo "--------------------------------------------------------------------------"
+    echo -e "[$(date)]: Performing ${GREEN}Debian ${distro}${NORMAL} ..."
+
+    if [[ ! -d "${path}" ]] ; then
+        sudo sbuild-createchroot --components=main,non-free,contrib "${distro}" "${path}" http://repo.pb.local/debian || continue
+        sudo rm -fv "/etc/schroot/chroot.d/${distro}-amd64-sbuild-"*
+        echo
+    fi
+
+    echo "Updating ${ini_file} ..."
+    echo "${CHROOT_INI_DEBIAN}" | \
+        sed -e "s/{{chroot}}/${chroot}/g" \
+            -e "s|{{path}}|${path}|g"  \
+            -e "s/{{distro}}/${distro}/g" \
+            -e "s/{{vendor}}/Debian/g" | \
+        sudo tee "${ini_file}" >/dev/null
+
+    echo "Updating ${sources_list} ..."
+    echo "${SRC_LIST_DEBIAN}" | \
+        sed -e "s/{{distro}}/${distro}/g" | \
+        sudo tee "${sources_list}" >/dev/null
+
+    echo "Updating ${pb_sources_list} ..."
+    echo "${PB_SRC_LIST_DEBIAN}" | \
+        sed -e "s/{{distro}}/${distro}/g" | \
+        sudo tee "${pb_sources_list}" >/dev/null
+
+    echo
+    echo "Checking profitbricks keyring ..."
+    if schroot -d / -u root -c source:${chroot} -- dpkg -s profitbricks-keyring >/dev/null 2>&1 ; then
+        :
+    else
+        echo "Adding profitbricks keyring ..."
+        schroot -d / -u root -c source:${chroot} -- apt-get update
+        schroot -d / -u root -c source:${chroot} -- apt-get -y --allow-unauthenticated install profitbricks-keyring
+    fi
+
+done
+
+for distro in trusty utopic vivid wily ; do
+
+    chroot="pb-${distro}"
+    path="${ROOT_PATH}/${chroot}"
+    ini_file="/etc/schroot/chroot.d/${chroot}"
+    sources_list="${path}/etc/apt/sources.list"
+    pb_sources_list="${path}/etc/apt/sources.list.d/profitbricks.list"
+    proxy_file="${path}/etc/apt/apt.conf.d/80proxy"
+
+    echo
+    echo "--------------------------------------------------------------------------"
+    echo -e "[$(date)]: Performing ${GREEN}Ubuntu ${distro}${NORMAL} ..."
+
+    if [[ ! -d "${path}" ]] ; then
+        http_proxy=http://proxy:3128/ sudo sbuild-createchroot --components=main,universe "${distro}" "${path}" http://de.archive.ubuntu.com/ubuntu || continue
+        sudo rm -fv "/etc/schroot/chroot.d/${distro}-amd64-sbuild-"*
+        echo
+    fi
+
+    echo "Updating ${ini_file} ..."
+    echo "${CHROOT_INI_DEBIAN}" | \
+        sed -e "s/{{chroot}}/${chroot}/g" \
+            -e "s|{{path}}|${path}|g"  \
+            -e "s/{{distro}}/${distro}/g" \
+            -e "s/{{vendor}}/Debian/g" | \
+        sudo tee "${ini_file}" >/dev/null
+
+    echo "Updating ${pb_sources_list} ..."
+    echo "${PB_SRC_LIST_UBUNTU}" | \
+        sed -e "s/{{distro}}/${distro}/g" | \
+        sudo tee "${pb_sources_list}" >/dev/null
+
+    echo "Updating ${proxy_file} ..."
+    echo "${PROXY_FILE_CONTENT}" | sudo tee "${proxy_file}" >/dev/null
+
+    echo
+    echo "Checking profitbricks keyring ..."
+    if schroot -d / -u root -c source:${chroot} -- dpkg -s profitbricks-keyring >/dev/null 2>&1 ; then
+        :
+    else
+        echo "Adding profitbricks keyring ..."
+        schroot -d / -u root -c source:${chroot} -- apt-get update
+        schroot -d / -u root -c source:${chroot} -- apt-get -y --allow-unauthenticated install profitbricks-keyring
+    fi
+
+done
+
+echo
+echo "--------------------------------------------------------------------------"
+echo -e "[$(date)]: ${GREEN}Finished${NORMAL}."
+
+
+# vim: ts=4 et softtabstop=4

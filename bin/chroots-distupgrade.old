@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ROOT_PATH="/home/chroots"
+ROOT_PATH="/srv/chroots"
 
 safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
 match_lhs=""
@@ -28,9 +28,9 @@ else
 fi
 
 
-for distro in wheezy jessie stretch trusty vivid wily xenial yakkety; do
+for distro in squeeze wheezy jessie stretch trusty utopic vivid wily ; do
 
-    chroot="fb-${distro}"
+    chroot="pb-${distro}"
     path="${ROOT_PATH}/${chroot}"
 
     echo
@@ -42,7 +42,7 @@ for distro in wheezy jessie stretch trusty vivid wily xenial yakkety; do
         continue
     fi
     echo -e "Upgrading chroot ${GREEN}${chroot}${NORMAL} ..."
-    schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get dist-upgrade -y && apt-get clean"
+    schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get dist-upgrade -y"
 
 done
 
