@@ -1,0 +1,55 @@
+#!/bin/bash
+
+set -e
+set -u
+
+DEB_DIRS=$(ls -1 */debian || true )
+if [[ -z "${DEB_DIRS}" ]] ; then
+    echo "Wrong working directory '$(pwd)'." >&2
+    exit 1
+fi
+
+declare -a BINARY_DISTROS=(
+    'wheezy' 'jessie' 'stretch' 'trusty' 'vivid' 'wily' 'xenial' 'yakkety'
+)
+declare -A BIN_PKG_GLOB
+BIN_PKG_GLOB['wheezy']="*~deb7*.deb"
+BIN_PKG_GLOB['jessie']="*~deb8*.deb"
+BIN_PKG_GLOB['stretch']="*~deb9*.deb"
+BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
+BIN_PKG_GLOB['vivid']="*~ubuntu15.04*.deb"
+BIN_PKG_GLOB['wily']="*~ubuntu15.10*.deb"
+BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
+BIN_PKG_GLOB['yakkety']="*~ubuntu16.10*.deb"
+SRC_DIR="sources"
+
+for distro in "${BINARY_DISTROS[@]}" ; do
+    echo
+    echo "Checking for distro '${distro}' ..."
+    bin_dir="pkgs-${distro}"
+    find * -maxdepth 0 -type f -iname "${BIN_PKG_GLOB[${distro}]}" -print0 | \
+        xargs --null --max-lines --no-run-if-empty --replace bash -c " \
+            if [[ ! -d \"${bin_dir}\" ]] ; then \
+                mkdir --verbose -p \"${bin_dir}\" ;
+            fi ; \
+            mv --verbose \"{}\" \"${bin_dir}\"
+        "
+done
+
+echo
+echo "Checking for sources ..."
+find * -maxdepth 0 \( -iname "*.build" -o -iname "*.changes" -o -iname "*.dsc" -o -iname "*.tar.*" \) -print0 | \
+    xargs --null --max-lines --no-run-if-empty --replace bash -c " \
+        if [[ -f \"{}\" ]] ; then
+            if [[ ! -d \"${SRC_DIR}\" ]] ; then \
+                mkdir --verbose -p \"${SRC_DIR}\" ;
+            fi ; \
+            mv --verbose \"{}\" \"${SRC_DIR}\";
+        else
+            echo \"'{}' is not a regular file.\" >&2 ;
+        fi
+    "
+
+echo
+echo "Checking for orphaned symlinks ..."
+find * -maxdepth 0 -iname "*.build" -type l -print0 | xargs --null --no-run-if-empty rm --verbose
