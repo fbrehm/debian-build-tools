@@ -147,7 +147,7 @@ CHROOT_INI_DEBIAN=$( cat <<-END
 	profile=sbuild
 	source-groups=root,sbuild
 	source-root-groups=root,sbuild
-	union-type=overlayfs
+	union-type=overlay
 	union-overlay-directory=${UNION_OVERLAY_DIR}
 	END
 )
@@ -162,7 +162,7 @@ CHROOT_INI_UBUNTU=$( cat <<-END
 	profile=sbuild
 	source-groups=root,sbuild
 	source-root-groups=root,sbuild
-	union-type=overlayfs
+	union-type=overlay
 	union-overlay-directory=${UNION_OVERLAY_DIR}
 	END
 )
@@ -409,6 +409,9 @@ do_debian() {
             echo "" | ${SUDO} tee -a "${sources_list}" >/dev/null
         fi
 
+        info "Installing '${GREEN}gnupg${NORMAL}' ..."
+        schroot -c source:${chroot} -u root -d /root -- bash -c "apt-get install -y gnupg"
+
         info "Creating '${GREEN}${sources_list_fb}${NORMAL}' ..."
         if [[ ! -d "${sources_list_dir}" ]] ; then
             MKDIR -p "${sources_list_dir}"
@@ -421,10 +424,10 @@ do_debian() {
         CP "${PUB_KEY_FILE}" "${fb_key_file_abs}"
 
         info "Adding APT key '${GREEN}${FB_KEY_FILE_REL}${NORMAL}' ..."
-        schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-key add \"${FB_KEY_FILE_REL}\""
+        schroot -c source:${chroot} -u root -d /root -- bash -c "apt-key add \"${FB_KEY_FILE_REL}\""
 
         info "Updating APT in '${GREEN}${chroot}${NORMAL}' ..."
-        schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get clean"
+        schroot -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get clean"
 
     done
 
@@ -496,6 +499,9 @@ do_ubuntu() {
         echo "${SRC_LIST_UBUNTU_FB}" | \
             sed -e "s/{{distro}}/${distro}/g" | \
             ${SUDO} tee -a "${sources_list_fb}" >/dev/null
+
+        info "Installing '${GREEN}gnupg${NORMAL}' ..."
+        schroot -c source:${chroot} -u root -d /root -- bash -c "apt-get install -y gnupg"
 
         info "Creating '${GREEN}${fb_key_file_abs}${NORMAL}' ..."
         CP "${PUB_KEY_FILE}" "${fb_key_file_abs}"
