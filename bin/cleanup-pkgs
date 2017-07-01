@@ -10,17 +10,18 @@ if [[ -z "${DEB_DIRS}" ]] ; then
 fi
 
 declare -a BINARY_DISTROS=(
-    'wheezy' 'jessie' 'stretch' 'trusty' 'vivid' 'wily' 'xenial' 'yakkety'
+    'jessie' 'stretch' 'buster' 'trusty' 'wily' 'xenial' 'yakkety' 'zesty'
 )
 declare -A BIN_PKG_GLOB
 BIN_PKG_GLOB['wheezy']="*~deb7*.deb"
 BIN_PKG_GLOB['jessie']="*~deb8*.deb"
 BIN_PKG_GLOB['stretch']="*~deb9*.deb"
+BIN_PKG_GLOB['buster']="*~deb10*.deb"
 BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
-BIN_PKG_GLOB['vivid']="*~ubuntu15.04*.deb"
 BIN_PKG_GLOB['wily']="*~ubuntu15.10*.deb"
 BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
 BIN_PKG_GLOB['yakkety']="*~ubuntu16.10*.deb"
+BIN_PKG_GLOB['zesty']="*~ubuntu17.04*.deb"
 SRC_DIR="sources"
 
 for distro in "${BINARY_DISTROS[@]}" ; do

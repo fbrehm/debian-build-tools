@@ -28,7 +28,7 @@ else
 fi
 
 
-for distro in wheezy jessie stretch trusty vivid wily xenial yakkety; do
+for distro in jessie stretch buster trusty wily xenial yakkety zesty; do
 
     chroot="fb-${distro}"
     path="${ROOT_PATH}/${chroot}"

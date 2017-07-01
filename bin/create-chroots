@@ -7,8 +7,8 @@ SUDO=
 
 VERSION="0.3.0"
 
-DEBIAN_DISTROS="wheezy jessie stretch"
-UBUNTU_DISTROS="trusty vivid wily xenial yakkety"
+DEBIAN_DISTROS="jessie stretch buster"
+UBUNTU_DISTROS="trusty wily xenial yakkety zesty"
 
 DEBIAN_MIRROR="http://ftp-stud.hs-esslingen.de/debian"
 UBUNTU_MIRROR="http://de.archive.ubuntu.com/ubuntu"
@@ -401,7 +401,7 @@ do_debian() {
                 ${SUDO} tee "${sources_list}" >/dev/null
         echo "" | ${SUDO} tee -a "${sources_list}" >/dev/null
 
-        if [[ "${distro}" != "stretch" ]] ; then
+        if [[ "${distro}" != "buster" ]] ; then
             info "Updating '${GREEN}${sources_list}${NORMAL}' for backports ..."
             echo "${SRC_LIST_DEBIAN_BACKPORTS}" | \
                 sed -e "s/{{distro}}/${distro}/g" | \
@@ -412,10 +412,12 @@ do_debian() {
         info "Installing '${GREEN}gnupg${NORMAL}' ..."
         schroot -c source:${chroot} -u root -d /root -- bash -c "apt-get install -y gnupg"
 
-        info "Creating '${GREEN}${sources_list_fb}${NORMAL}' ..."
+        info "Checking '${GREEN}${sources_list_dir}${NORMAL}' ..."
         if [[ ! -d "${sources_list_dir}" ]] ; then
             MKDIR -p "${sources_list_dir}"
         fi
+
+        info "Creating '${GREEN}${sources_list_fb}${NORMAL}' ..."
         echo "${SRC_LIST_DEBIAN_FB}" | \
             sed -e "s/{{distro}}/${distro}/g" | \
             ${SUDO} tee -a "${sources_list_fb}" >/dev/null
@@ -492,10 +494,15 @@ do_ubuntu() {
                 ${SUDO} tee "${sources_list}" >/dev/null
         echo "" | ${SUDO} tee -a "${sources_list}" >/dev/null
 
-        info "Creating '${GREEN}${sources_list_fb}${NORMAL}' ..."
+        info "Checking '${GREEN}${sources_list_dir}${NORMAL}' ..."
         if [[ ! -d "${sources_list_dir}" ]] ; then
             MKDIR -p "${sources_list_dir}"
         fi
+
+        info "Updating APT in '${GREEN}${chroot}${NORMAL}' ..."
+        schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get clean"
+
+        info "Creating '${GREEN}${sources_list_fb}${NORMAL}' ..."
         echo "${SRC_LIST_UBUNTU_FB}" | \
             sed -e "s/{{distro}}/${distro}/g" | \
             ${SUDO} tee -a "${sources_list_fb}" >/dev/null
