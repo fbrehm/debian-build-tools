@@ -8,7 +8,7 @@ SUDO=
 VERSION="0.3.0"
 
 DEBIAN_DISTROS="jessie stretch buster"
-UBUNTU_DISTROS="trusty wily xenial yakkety zesty"
+UBUNTU_DISTROS="trusty xenial yakkety zesty artful"
 
 DEBIAN_MIRROR="http://ftp-stud.hs-esslingen.de/debian"
 UBUNTU_MIRROR="http://de.archive.ubuntu.com/ubuntu"
