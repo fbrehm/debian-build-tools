@@ -3,10 +3,14 @@
 set -e
 set -u
 
-DEB_DIRS=$(ls -1 */debian || true )
-if [[ -z "${DEB_DIRS}" ]] ; then
-    echo "Wrong working directory '$(pwd)'." >&2
-    exit 1
+if [[ -d "debian" && -f "debian/rules" && -f "debian/changelog" ]] ; then
+    cd ..
+else
+    DEB_DIRS=$(ls -1 */debian || true )
+    if [[ -z "${DEB_DIRS}" ]] ; then
+        echo "Wrong working directory '$(pwd)'." >&2
+        exit 1
+    fi
 fi
 
 declare -a BINARY_DISTROS=(
