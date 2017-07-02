@@ -3,29 +3,23 @@
 set -e
 set -u
 
-if [[ -d "debian" && -f "debian/rules" && -f "debian/changelog" ]] ; then
-    cd ..
-else
-    DEB_DIRS=$(ls -1 */debian || true )
-    if [[ -z "${DEB_DIRS}" ]] ; then
-        echo "Wrong working directory '$(pwd)'." >&2
-        exit 1
-    fi
+ORIG_SCRIPT=$( readlink -f "$0" )
+SCRIPT_DIR=$( dirname "${ORIG_SCRIPT}" )
+RC_FILE="${SCRIPT_DIR}/debbuildtools.rc"
+
+if [[ ! -f "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not found." >&2
+    exit 5
 fi
 
-declare -a BINARY_DISTROS=(
-    'jessie' 'stretch' 'buster' 'trusty' 'xenial' 'yakkety' 'zesty' 'artful'
-)
-declare -A BIN_PKG_GLOB
-BIN_PKG_GLOB['jessie']="*~deb8*.deb"
-BIN_PKG_GLOB['stretch']="*~deb9*.deb"
-BIN_PKG_GLOB['buster']="*~deb10*.deb"
-BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
-BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
-BIN_PKG_GLOB['yakkety']="*~ubuntu16.10*.deb"
-BIN_PKG_GLOB['zesty']="*~ubuntu17.04*.deb"
-BIN_PKG_GLOB['artful']="*~ubuntu17.10*.deb"
-SRC_DIR="sources"
+if [[ ! -r "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not readable." >&2
+    exit 5
+fi
+
+. "${RC_FILE}"
+
+set_workdir
 
 for distro in "${BINARY_DISTROS[@]}" ; do
     echo
