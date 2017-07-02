@@ -104,7 +104,7 @@ show_cmd() {
 
 #------------------------------------------------------------------------------
 empty_line() {
-    if [[ "${QUIET}" = "y" ]] ; then
+    if [[ "${QUIET}" == "y" ]] ; then
         return
     fi
     echo
@@ -112,7 +112,7 @@ empty_line() {
 
 #------------------------------------------------------------------------------
 info() {
-    if [[ "${QUIET}" = "y" ]] ; then
+    if [[ "${QUIET}" == "y" ]] ; then
         return
     fi
     echo -e " ${GREEN}*${NORMAL} [$(my_date)] [${MY_BASE}:${GREEN}INFO${NORMAL}] : $@"

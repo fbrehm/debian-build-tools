@@ -1,53 +1,55 @@
 #!/bin/bash
 
-ROOT_PATH="/home/chroots"
+set -e
+set -u
 
-safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
-match_lhs=""
-use_color=false
-[[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
-[[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
-[[ -z ${match_lhs}    ]] \
-    && type -P dircolors >/dev/null \
-    && match_lhs=$(dircolors --print-database)
-[[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color=true
+ORIG_SCRIPT=$( readlink -f "$0" )
+SCRIPT_DIR=$( dirname "${ORIG_SCRIPT}" )
+RC_FILE="${SCRIPT_DIR}/debbuildtools.rc"
 
-# console colors:
-if ${use_color}; then
-    RED="\033[38;5;196m"
-    YELLOW="\033[38;5;226m"
-    GREEN="\033[38;5;46m"
-    BLUE="\033[38;5;27m"
-    NORMAL="\033[39m"
-else
-    RED=""
-    YELLOW=""
-    GREEN=""
-    BLUE=""
-    NORMAL=""
+if [[ ! -f "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not found." >&2
+    exit 5
 fi
 
+if [[ ! -r "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not readable." >&2
+    exit 5
+fi
 
-for distro in jessie stretch buster trusty wily xenial yakkety zesty; do
+. "${RC_FILE}"
+
+VERSION='0.2.2'
+
+set_colors
+do_cmd_line_opts "$@"
+
+ROOT_PATH="/home/chroots"
+
+for distro in ${DEBIAN_DISTROS}  ${UBUNTU_DISTROS}; do
 
     chroot="fb-${distro}"
     path="${ROOT_PATH}/${chroot}"
 
-    echo
-    echo "--------------------------------------------------------------------------"
-    echo -e "[$(date)]: Performing ${GREEN}${distro}${NORMAL} ..."
+    empty_line
+    if [[ "${QUIET}" != "y" ]] ; then
+        echo "--------------------------------------------------------------------------"
+    fi
+    info "Performing ${GREEN}${distro}${NORMAL} ..."
 
     if [[ ! -d "${path}" ]] ; then
-        echo -e "${RED}Error:${NORMAL}: directory ${RED}${path}${NORMAL} of chroot ${YELLOW}${chroot}${NORMAL} does not exists."
+        error "directory ${RED}${path}${NORMAL} of chroot ${YELLOW}${chroot}${NORMAL} does not exists."
         continue
     fi
-    echo -e "Upgrading chroot ${GREEN}${chroot}${NORMAL} ..."
+    info "Upgrading chroot ${GREEN}${chroot}${NORMAL} ..."
     schroot  -c source:${chroot} -u root -d /root -- bash -c "apt-get update && apt-get dist-upgrade -y && apt-get clean"
 
 done
 
-echo
-echo "--------------------------------------------------------------------------"
-echo -e "[$(date)]: ${GREEN}Finished${NORMAL}."
+empty_line
+if [[ "${QUIET}" != "y" ]] ; then
+    echo "--------------------------------------------------------------------------"
+fi
+info "${GREEN}Finished${NORMAL}."
 
 # vim: ts=4 et softtabstop=4
