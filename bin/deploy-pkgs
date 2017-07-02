@@ -19,7 +19,7 @@ fi
 
 . "${RC_FILE}"
 
-VERSION='0.2.1'
+VERSION='0.2.2'
 
 set_colors
 do_cmd_line_opts "$@"
@@ -30,5 +30,47 @@ REPO_USER="repo"
 REPO_ROOT_DIR="/var/www/html"
 
 CFG_FILE="${MY_ETC_DIR}/deploy-pkgs.conf"
+if [[ -f "${CFG_FILE}" ]] ; then
+    debug "Sourcing config file '${CFG_FILE}' ..."
+    . "${CFG_FILE}"
+fi
+
+VERBOSE_OPT=""
+if [[ "${VERBOSE}" = "y" ]] ; then
+    VERBOSE_OPT="--verbose"
+fi
+
+for DISTRO in ${DEBIAN_DISTROS}; do
+    PKG_DIR="pkgs-${DISTRO}"
+    if [[ -d "${PKG_DIR}" ]] ; then
+        TARGET_DIR="${REPO_ROOT_DIR}/Debian/${DISTRO}"
+        TARGET="${REPO_USER}@${REPO_HOST}:${TARGET_DIR}/"
+        info "Deploying packages from '${GREEN}${PKG_DIR}${NORMAL}' to ${TARGET} ..."
+        CMD="rsync -ahP ${VERBOSE_OPT} \"${PKG_DIR}/\" \"${TARGET}\""
+        show_cmd "${CMD}"
+        eval ${CMD}
+    fi
+done
+
+for DISTRO in ${UBUNTU_DISTROS}; do
+    PKG_DIR="pkgs-${DISTRO}"
+    if [[ -d "${PKG_DIR}" ]] ; then
+        TARGET_DIR="${REPO_ROOT_DIR}/Ubuntu/${DISTRO}"
+        TARGET="${REPO_USER}@${REPO_HOST}:${TARGET_DIR}/"
+        info "Deploying packages from '${GREEN}${PKG_DIR}${NORMAL}' to ${TARGET} ..."
+        CMD="rsync -ahP ${VERBOSE_OPT} \"${PKG_DIR}/\" \"${TARGET}\""
+        show_cmd "${CMD}"
+        eval ${CMD}
+    fi
+done
+
+if [[ -d "${SRC_DIR}" ]] ; then
+    TARGET_DIR="${REPO_ROOT_DIR}/Sources"
+    TARGET="${REPO_USER}@${REPO_HOST}:${TARGET_DIR}/"
+    info "Deploying sources from '${GREEN}${SRC_DIR}${NORMAL}' to ${TARGET} ..."
+    CMD="rsync -ahP ${VERBOSE_OPT} --exclude=\"*.build\" --exclude=\"*.changes\" \"${SRC_DIR}/\" \"${TARGET}\""
+    show_cmd "${CMD}"
+    eval ${CMD}
+fi
 
 # vim: ts=4 et
