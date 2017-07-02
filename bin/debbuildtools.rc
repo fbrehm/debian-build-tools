@@ -1,0 +1,31 @@
+#!/bin/bash
+
+declare -a BINARY_DISTROS=(
+    'jessie' 'stretch' 'buster' 'trusty' 'xenial' 'yakkety' 'zesty' 'artful'
+)
+declare -A BIN_PKG_GLOB
+BIN_PKG_GLOB['jessie']="*~deb8*.deb"
+BIN_PKG_GLOB['stretch']="*~deb9*.deb"
+BIN_PKG_GLOB['buster']="*~deb10*.deb"
+BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
+BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
+BIN_PKG_GLOB['yakkety']="*~ubuntu16.10*.deb"
+BIN_PKG_GLOB['zesty']="*~ubuntu17.04*.deb"
+BIN_PKG_GLOB['artful']="*~ubuntu17.10*.deb"
+SRC_DIR="sources"
+
+set_workdir() {
+    if [[ -d "debian" && -f "debian/rules" && -f "debian/changelog" ]] ; then
+        cd ..
+    else
+        local deb_dirs=$(ls -1 */debian || true )
+        if [[ -z "${deb_dirs}" ]] ; then
+            echo "Wrong working directory '$(pwd)'." >&2
+            exit 1
+        fi
+    fi
+
+}
+
+
+# vim: ts=4 et filetype=sh

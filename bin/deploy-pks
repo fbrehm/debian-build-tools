@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+set -u
+
+ORIG_SCRIPT=$( readlink -f "$0" )
+SCRIPT_DIR=$( dirname "${ORIG_SCRIPT}" )
+RC_FILE="${SCRIPT_DIR}/debbuildtools.rc"
+
+if [[ ! -f "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not found." >&2
+    exit 5
+fi
+
+if [[ ! -r "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not readable." >&2
+    exit 5
+fi
+
+. "${RC_FILE}"
+
+set_workdir
+
+# vim: ts=4 et

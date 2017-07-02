@@ -57,3 +57,5 @@ find * -maxdepth 0 \( -iname "*.build" -o -iname "*.changes" -o -iname "*.dsc" -
 echo
 echo "Checking for orphaned symlinks ..."
 find * -maxdepth 0 -iname "*.build" -type l -print0 | xargs --null --no-run-if-empty rm --verbose
+
+# vim: ts=4 et
