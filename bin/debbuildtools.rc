@@ -1,19 +1,72 @@
 #!/bin/bash
 
-declare -a BINARY_DISTROS=(
-    'jessie' 'stretch' 'buster' 'trusty' 'xenial' 'yakkety' 'zesty' 'artful'
-)
+
+#--------------------------------------------------------------------
+# Global variables
+
+DEBIAN_DISTROS="jessie stretch buster"
+UBUNTU_DISTROS="trusty xenial yakkety zesty artful"
+
+#declare -a BINARY_DISTROS=(
+#    'jessie' 'stretch' 'buster' 'trusty' 'xenial' 'yakkety' 'zesty' 'artful'
+#)
+declare -a BINARY_DISTROS=()
 declare -A BIN_PKG_GLOB
-BIN_PKG_GLOB['jessie']="*~deb8*.deb"
-BIN_PKG_GLOB['stretch']="*~deb9*.deb"
-BIN_PKG_GLOB['buster']="*~deb10*.deb"
-BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
-BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
-BIN_PKG_GLOB['yakkety']="*~ubuntu16.10*.deb"
-BIN_PKG_GLOB['zesty']="*~ubuntu17.04*.deb"
-BIN_PKG_GLOB['artful']="*~ubuntu17.10*.deb"
+
+VERSION='0.3.0'
+
+#--------------------------------------------------------------------
+init_distros() {
+    local distro
+    BINARY_DISTROS=()
+    for distro in ${DEBIAN_DISTROS} ${UBUNTU_DISTROS} ; do
+        BINARY_DISTROS+=( "${distro}" )
+    done
+    BIN_PKG_GLOB['jessie']="*~deb8*.deb"
+    BIN_PKG_GLOB['stretch']="*~deb9*.deb"
+    BIN_PKG_GLOB['buster']="*~deb10*.deb"
+    BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
+    BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
+    BIN_PKG_GLOB['yakkety']="*~ubuntu16.10*.deb"
+    BIN_PKG_GLOB['zesty']="*~ubuntu17.04*.deb"
+    BIN_PKG_GLOB['artful']="*~ubuntu17.10*.deb"
+}
+init_distros
+
+#--------------------------------------------------------------------
+# More global vaariables ...
 SRC_DIR="sources"
 
+SUDO=
+if [[ $( id -u ) != "0" ]] ; then
+    SUDO="sudo"
+fi
+
+DEBIAN_MIRROR="http://ftp-stud.hs-esslingen.de/debian"
+UBUNTU_MIRROR="http://de.archive.ubuntu.com/ubuntu"
+
+DEBUG="n"
+VERBOSE="n"
+USE_COLOR=false
+FORCE="n"
+HAS_TTY='y'
+QUIET="n"
+
+RED=""
+YELLOW=""
+GREEN=""
+BLUE=""
+NORMAL=""
+
+MY_BASE=$( basename $0 )
+MY_REAL_PATH=$( readlink --canonicalize-existing $0 )
+MY_DIR=$( dirname "${MY_REAL_PATH}" )
+BASE_DIR=$( dirname "${MY_DIR}" )
+
+#########################################
+# Some often used funktions
+
+#--------------------------------------------------------------------
 set_workdir() {
     if [[ -d "debian" && -f "debian/rules" && -f "debian/changelog" ]] ; then
         cd ..
@@ -24,8 +77,205 @@ set_workdir() {
             exit 1
         fi
     fi
+    debug "Current working directory is now '$( pwd )'."
+}
+
+#------------------------------------------------------------------------------
+my_date() {
+    date +'%F %T.%N %:::z'
+}
+
+#------------------------------------------------------------------------------
+debug() {
+    if [[ "${VERBOSE}" != "y" ]] ; then
+        return
+    fi
+    echo -e " * [$(my_date)] [${MY_BASE}:DEBUG]: $@"
+}
+
+#------------------------------------------------------------------------------
+show_cmd() {
+    if [[ "${VERBOSE}" != "y" ]] ; then
+        return
+    fi
+    echo -e "   $*"
+}
+
+#------------------------------------------------------------------------------
+empty_line() {
+    if [[ "${QUIET}" = "y" ]] ; then
+        return
+    fi
+    echo
+}
+
+#------------------------------------------------------------------------------
+info() {
+    if [[ "${QUIET}" = "y" ]] ; then
+        return
+    fi
+    echo -e " ${GREEN}*${NORMAL} [$(my_date)] [${MY_BASE}:${GREEN}INFO${NORMAL}] : $@"
+}
+
+#------------------------------------------------------------------------------
+warn() {
+    echo -e " ${YELLOW}*${NORMAL} [$(my_date)] [${MY_BASE}:${YELLOW}WARN${NORMAL}] : $@" >&2
+}
+
+#------------------------------------------------------------------------------
+error() {
+    echo -e " ${RED}*${NORMAL} [$(my_date)] [${MY_BASE}:${RED}ERROR${NORMAL}]: $@" >&2
+}
+
+#------------------------------------------------------------------------------
+RM() {
+    if [[ "${VERBOSE}" = "y" ]] ; then
+        ${SUDO} rm -v "$@"
+    else
+        ${SUDO} rm "$@"
+    fi
+}
+
+#------------------------------------------------------------------------------
+CP() {
+    if [[ "${VERBOSE}" = "y" ]] ; then
+        ${SUDO} cp -v "$@"
+    else
+        ${SUDO} cp "$@"
+    fi
+}
+
+#------------------------------------------------------------------------------
+MKDIR() {
+    if [[ "${VERBOSE}" = "y" ]] ; then
+        ${SUDO} mkdir -v "$@"
+    else
+        ${SUDO} mkdir "$@"
+    fi
+}
+
+#------------------------------------------------------------------------------
+set_colors() {
+
+    local safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
+    local match_lhs=""
+    USE_COLOR=false
+    [[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
+    [[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
+    [[ -z ${match_lhs}    ]] \
+        && type -P dircolors >/dev/null \
+        && match_lhs=$(dircolors --print-database)
+    [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && USE_COLOR="true"
+
+
+    # console colors:
+    if ${USE_COLOR}; then
+        RED="\033[38;5;196m"
+        YELLOW="\033[38;5;226m"
+        GREEN="\033[38;5;46m"
+        BLUE="\033[38;5;27m"
+        NORMAL="\033[39m"
+    fi
+
+    local my_tty=$(tty)
+    if [[ "${my_tty}" =~ 'not a tty' ]] ; then
+        my_tty='-'
+    fi
+
+    if [[ "${my_tty}" = '-' || "${safe_term}" = "dump" ]] ; then
+        HAS_TTY='n'
+    fi
 
 }
 
+#------------------------------------------------------------------------------
+usage() {
+    cat <<EOF
+Usage: ${MY_BASE} [-d|--debug] [[-v|--verbose] | [-q|--quiet]] [-f|--force] [--no-color]
+       ${MY_BASE} [-h|--help]
+       ${MY_BASE} [-V|--version]
+
+    Options:
+        -d|--debug      Debug output (bash -x)
+        -v|--verbose    Set verbosity on, may not be used together with option '--quiet'.
+        -q|--quiet      Quiet execution, only errors and warnings are shown.
+        -f|--force      Force execution, overriding existing chroot directory.
+        --no-color      Don't use colors in display, even if they could be used.
+        -h|--help       Show this output and exit
+        -V|--version    Prints out version number of the script and exit
+EOF
+}
+
+
+#------------------------------------------------------------------------------
+do_cmd_line_opts() {
+
+    set +e
+    local temp=$( getopt -o dvqfhV \
+                    --long debug,verbose,quiet,force,help,version,no-color \
+                    -n "${MY_BASE}" -- "$@" )
+    if [[ $? != 0 ]] ; then
+        echo "" >&2
+        usage >&2
+        exit 1
+    fi
+    set -e
+
+    # Note the quotes around `$TEMP': they are essential!
+    eval set -- "$temp"
+
+    while true ; do
+        case "$1" in
+            -d|--debug)
+                DEBUG="y"
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE="y"
+                shift
+                ;;
+            -q|--quiet)
+                QUIET="y"
+                shift
+                ;;
+            -f|--force)
+                FORCE="y"
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -V|--version)
+                echo "${MY_BASE} version: ${VERSION}"
+                exit 0
+                ;;
+            --no-color)
+                RED=""
+                YELLOW=""
+                GREEN=""
+                BLUE=""
+                NORMAL=""
+                shift
+                ;;
+            --) shift
+                break
+                ;;
+            *)  echo "Internal parse error, wrong parameter $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    if [[ "${DEBUG}" = "y" ]] ; then
+        set -x
+    fi
+
+    if [[ "${VERBOSE}" == "y" && "${QUIET}" == "y" ]] ; then
+        error "Options '${RED}--verbose${NORMAL}' and '${RED}--quiet${NORMAL}' may not be used together."
+        exit 1
+    fi
+
+}
 
 # vim: ts=4 et filetype=sh

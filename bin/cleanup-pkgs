@@ -19,37 +19,49 @@ fi
 
 . "${RC_FILE}"
 
+VERSION='0.2.1'
+
+set_colors
+do_cmd_line_opts "$@"
 set_workdir
 
+VERBOSE_OPT=""
+if [[ "${VERBOSE}" == "y" ]] ; then
+    VERBOSE_OPT="--verbose"
+fi
+
 for distro in "${BINARY_DISTROS[@]}" ; do
-    echo
-    echo "Checking for distro '${distro}' ..."
+    empty_line
+    info "Checking for distro '${GREEN}${distro}${NORMAL}' ..."
     bin_dir="pkgs-${distro}"
     find * -maxdepth 0 -type f -iname "${BIN_PKG_GLOB[${distro}]}" -print0 | \
         xargs --null --max-lines --no-run-if-empty --replace bash -c " \
             if [[ ! -d \"${bin_dir}\" ]] ; then \
-                mkdir --verbose -p \"${bin_dir}\" ;
+                mkdir ${VERBOSE_OPT} -p \"${bin_dir}\" ;
             fi ; \
-            mv --verbose \"{}\" \"${bin_dir}\"
+            mv ${VERBOSE_OPT} \"{}\" \"${bin_dir}\"
         "
 done
 
-echo
-echo "Checking for sources ..."
+empty_line
+info "Checking for sources ..."
 find * -maxdepth 0 \( -iname "*.build" -o -iname "*.changes" -o -iname "*.dsc" -o -iname "*.tar.*" \) -print0 | \
     xargs --null --max-lines --no-run-if-empty --replace bash -c " \
         if [[ -f \"{}\" ]] ; then
             if [[ ! -d \"${SRC_DIR}\" ]] ; then \
-                mkdir --verbose -p \"${SRC_DIR}\" ;
+                mkdir ${VERBOSE_OPT} -p \"${SRC_DIR}\" ;
             fi ; \
-            mv --verbose \"{}\" \"${SRC_DIR}\";
+            mv ${VERBOSE_OPT} \"{}\" \"${SRC_DIR}\";
         else
             echo \"'{}' is not a regular file.\" >&2 ;
         fi
     "
 
-echo
-echo "Checking for orphaned symlinks ..."
-find * -maxdepth 0 -iname "*.build" -type l -print0 | xargs --null --no-run-if-empty rm --verbose
+empty_line
+info "Checking for orphaned symlinks ..."
+find * -maxdepth 0 -iname "*.build" -type l -print0 | xargs --null --no-run-if-empty rm ${VERBOSE_OPT}
+
+empty_line
+info "Finished"
 
 # vim: ts=4 et
