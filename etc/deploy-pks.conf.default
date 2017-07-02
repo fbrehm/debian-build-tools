@@ -1,0 +1,7 @@
+
+# Repository-Host usw.
+#REPO_HOST="repo.uhu-banane.de"
+#REPO_USER="repo"
+#REPO_ROOT_DIR="/var/www/html"
+
+# vim: filetype=sh
