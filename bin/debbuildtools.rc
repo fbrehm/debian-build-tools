@@ -7,9 +7,6 @@
 DEBIAN_DISTROS="jessie stretch buster"
 UBUNTU_DISTROS="trusty xenial yakkety zesty artful"
 
-#declare -a BINARY_DISTROS=(
-#    'jessie' 'stretch' 'buster' 'trusty' 'xenial' 'yakkety' 'zesty' 'artful'
-#)
 declare -a BINARY_DISTROS=()
 declare -A BIN_PKG_GLOB
 
