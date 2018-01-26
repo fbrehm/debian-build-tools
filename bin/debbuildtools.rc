@@ -10,7 +10,7 @@ UBUNTU_DISTROS="trusty xenial artful bionic"
 declare -a BINARY_DISTROS=()
 declare -A BIN_PKG_GLOB
 
-VERSION='0.3.1'
+VERSION='0.4.0'
 
 #--------------------------------------------------------------------
 init_distros() {
@@ -272,6 +272,9 @@ do_cmd_line_opts() {
         error "Options '${RED}--verbose${NORMAL}' and '${RED}--quiet${NORMAL}' may not be used together."
         exit 1
     fi
+
+    # Manipulate Exec path
+    export PATH="${PATH}:/usr/local/sbin:/usr/sbin:/sbin"
 
 }
 
