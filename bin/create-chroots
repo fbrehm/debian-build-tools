@@ -5,10 +5,10 @@ UNION_OVERLAY_DIR="/var/tmpfs"
 DISTROS=
 SUDO=
 
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 DEBIAN_DISTROS="jessie stretch buster"
-UBUNTU_DISTROS="trusty xenial yakkety zesty artful"
+UBUNTU_DISTROS="trusty xenial artful bionic"
 
 DEBIAN_MIRROR="http://ftp-stud.hs-esslingen.de/debian"
 UBUNTU_MIRROR="http://de.archive.ubuntu.com/ubuntu"
