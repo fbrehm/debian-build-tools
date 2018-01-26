@@ -1,141 +1,37 @@
 #!/bin/bash
 
+set -e
+set -u
+
+ORIG_SCRIPT=$( readlink -f "$0" )
+SCRIPT_DIR=$( dirname "${ORIG_SCRIPT}" )
+RC_FILE="${SCRIPT_DIR}/debbuildtools.rc"
+
+if [[ ! -f "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not found." >&2
+    exit 5
+fi
+
+if [[ ! -r "${RC_FILE}" ]] ; then
+    echo "File '${RC_FILE}' not readable." >&2
+    exit 5
+fi
+
+. "${RC_FILE}"
+
 ROOT_PATH="/home/chroots"
 UNION_OVERLAY_DIR="/var/tmpfs"
 DISTROS=
 SUDO=
 
-VERSION="0.3.1"
-
-DEBIAN_DISTROS="jessie stretch buster"
-UBUNTU_DISTROS="trusty xenial artful bionic"
-
-DEBIAN_MIRROR="http://ftp-stud.hs-esslingen.de/debian"
-UBUNTU_MIRROR="http://de.archive.ubuntu.com/ubuntu"
+VERSION="0.4.0"
 
 #------------------------------------------------------------------------------
-debug="n"
-verbose="n"
-use_color=false
-FORCE="n"
-HAS_TTY='y'
-
-RED=""
-YELLOW=""
-GREEN=""
-BLUE=""
-NORMAL=""
-
-MY_BASE=$( basename $0 )
-MY_REAL_PATH=$( readlink --canonicalize-existing $0 )
-MY_DIR=$( dirname "${MY_REAL_PATH}" )
-BASE_DIR=$( dirname "${MY_DIR}" )
 PUB_KEY_FILE_BASE="repo.uhu-banane.de.gpg-key2.pub"
 PUB_KEY_FILE="${BASE_DIR}/keys/${PUB_KEY_FILE_BASE}"
 FB_KEY_FILE_REL="/etc/apt/repo.uhu-banane.de.gpg-key2.pub"
 
 #########################################
-# Some often used funktions
-
-#------------------------------------------------------------------------------
-my_date() {
-    date +'%F %T.%N %:::z'
-}
-
-#------------------------------------------------------------------------------
-debug() {
-    if [[ "${VERBOSE}" != "y" ]] ; then
-        return
-    fi
-    echo -e " * [$(my_date)] [${MY_BASE}:DEBUG]: $@"
-}
-
-#------------------------------------------------------------------------------
-show_cmd() {
-    if [[ "${VERBOSE}" != "y" ]] ; then
-        return
-    fi
-    echo -e "   $*"
-}
-
-#------------------------------------------------------------------------------
-info() {
-    if [[ "${QUIET}" = "y" ]] ; then
-        return
-    fi
-    echo -e " ${GREEN}*${NORMAL} [$(my_date)] [${MY_BASE}:${GREEN}INFO${NORMAL}] : $@"
-}
-
-#------------------------------------------------------------------------------
-warn() {
-    echo -e " ${YELLOW}*${NORMAL} [$(my_date)] [${MY_BASE}:${YELLOW}WARN${NORMAL}] : $@" >&2
-}
-
-#------------------------------------------------------------------------------
-error() {
-    echo -e " ${RED}*${NORMAL} [$(my_date)] [${MY_BASE}:${RED}ERROR${NORMAL}]: $@" >&2
-}
-
-#------------------------------------------------------------------------------
-RM() {
-    if [[ "${verbose}" = "y" ]] ; then
-        ${SUDO} rm -v "$@"
-    else
-        ${SUDO} rm "$@"
-    fi
-}
-
-#------------------------------------------------------------------------------
-CP() {
-    if [[ "${verbose}" = "y" ]] ; then
-        ${SUDO} cp -v "$@"
-    else
-        ${SUDO} cp "$@"
-    fi
-}
-
-#------------------------------------------------------------------------------
-MKDIR() {
-    if [[ "${verbose}" = "y" ]] ; then
-        ${SUDO} mkdir -v "$@"
-    else
-        ${SUDO} mkdir "$@"
-    fi
-}
-
-#------------------------------------------------------------------------------
-set_colors() {
-
-    local safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
-    local match_lhs=""
-    use_color=false
-    [[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
-    [[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
-    [[ -z ${match_lhs}    ]] \
-        && type -P dircolors >/dev/null \
-        && match_lhs=$(dircolors --print-database)
-    [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color="true"
-
-
-    # console colors:
-    if ${use_color}; then
-        RED="\033[38;5;196m"
-        YELLOW="\033[38;5;226m"
-        GREEN="\033[38;5;46m"
-        BLUE="\033[38;5;27m"
-        NORMAL="\033[39m"
-    fi
-
-    local my_tty=$(tty)
-    if [[ "${my_tty}" =~ 'not a tty' ]] ; then
-        my_tty='-'
-    fi
-
-    if [[ "${my_tty}" = '-' || "${safe_term}" = "dump" ]] ; then
-        HAS_TTY='n'
-    fi
-
-}
 
 CHROOT_INI_DEBIAN=$( cat <<-END
 	[{{chroot}}]
@@ -218,17 +114,19 @@ SRC_LIST_UBUNTU_FB=$( cat <<-END
 #------------------------------------------------------------------------------
 usage() {
     cat <<EOF
-Usage: ${MY_BASE} [-d|--debug] [-v|--verbose] [-f|--force] [-R PATH] [DISTRO ...]
+Usage: ${MY_BASE} [-d|--debug]  [[-v|--verbose] | [-q|--quiet]] [--no-color][-f|--force] [-R PATH] [DISTRO ...]
        ${MY_BASE} [-h|--help]
        ${MY_BASE} [-V|--version]
 
     Generates a new schroot images
 
     Options:
-        -R|--root PATH  Root path of generated images (default: '${ROOT_PATH}')
         -d|--debug      Debug output (bash -x)
-        -v|--verbose    Set verbosity on.
+        -v|--verbose    Set verbosity on, may not be used together with option '--quiet'.
+        -q|--quiet      Quiet execution, only errors and warnings are shown.
         -f|--force      Force execution, overriding existing chroot directory.
+        --no-color      Don't use colors in display, even if they could be used.
+        -R|--root PATH  Root path of generated images (default: '${ROOT_PATH}')
         -h|--help       Show this output and exit
         -V|--version    Prints out version number of the script and exit
 EOF
@@ -239,8 +137,8 @@ EOF
 do_cmd_line_opts() {
 
     set +e
-    local temp=$( getopt -o R:dvfhV \
-                    --long root:,debug,verbose,force,help,version \
+    local temp=$( getopt -o R:dvqfhV \
+                    --long root:,debug,verbose,quiet,force,help,version,no-color \
                     -n "${MY_BASE}" -- "$@" )
     if [[ $? != 0 ]] ; then
         echo "" >&2
@@ -266,6 +164,10 @@ do_cmd_line_opts() {
                 verbose="y"
                 shift
                 ;;
+            -q|--quiet)
+                QUIET="y"
+                shift
+                ;;
             -f|--force)
                 FORCE="y"
                 shift
@@ -278,6 +180,14 @@ do_cmd_line_opts() {
                 echo "${MY_BASE} version: ${VERSION}"
                 exit 0
                 ;;
+            --no-color)
+                RED=""
+                YELLOW=""
+                GREEN=""
+                BLUE=""
+                NORMAL=""
+                shift
+                ;;
             --) shift
                 break
                 ;;
@@ -287,12 +197,13 @@ do_cmd_line_opts() {
         esac
     done
 
-    if [[ "${debug}" = "y" ]] ; then
+    if [[ "${DEBUG}" = "y" ]] ; then
         set -x
     fi
 
-    if [[ $( id -u ) != "0" ]] ; then
-        SUDO="sudo"
+    if [[ "${VERBOSE}" == "y" && "${QUIET}" == "y" ]] ; then
+        error "Options '${RED}--verbose${NORMAL}' and '${RED}--quiet${NORMAL}' may not be used together."
+        exit 1
     fi
 
     if [[ "$#" -gt "0" ]] ; then
@@ -535,9 +446,11 @@ fi
 do_debian
 do_ubuntu
 
-echo
-echo "--------------------------------------------------------------------------"
-echo -e "[$(date)]: ${GREEN}Finished${NORMAL}."
+if [[ "${QUIET}" != "y" ]] ; then
+    echo
+    echo "--------------------------------------------------------------------------"
+    info "${GREEN}Finished${NORMAL}."
+fi
 
 
 # vim: ts=4 et softtabstop=4
