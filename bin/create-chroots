@@ -386,7 +386,7 @@ do_ubuntu() {
         info "Performing ${GREEN}Debian ${distro}${NORMAL} ..."
 
         if [[ ! -d "${path}" ]] ; then
-            ${SUDO} sbuild-createchroot --components=main,universe "${distro}" "${path}" "${UBUNTU_MIRROR}" || continue
+            ${SUDO} /usr/sbin/sbuild-createchroot --components=main,universe "${distro}" "${path}" "${UBUNTU_MIRROR}" || continue
             RM -f "/etc/schroot/chroot.d/${distro}-amd64-sbuild-"*
             echo
         fi
