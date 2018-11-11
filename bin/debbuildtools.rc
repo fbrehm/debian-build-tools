@@ -6,7 +6,7 @@
 
 #DEBIAN_DISTROS="jessie stretch buster bullseye"
 DEBIAN_DISTROS="jessie stretch buster"
-UBUNTU_DISTROS="trusty xenial artful bionic cosmic"
+UBUNTU_DISTROS="trusty xenial bionic cosmic"
 
 declare -a BINARY_DISTROS=()
 declare -A BIN_PKG_GLOB
@@ -26,7 +26,6 @@ init_distros() {
     #BIN_PKG_GLOB['bullseye']="*~deb11*.deb"
     BIN_PKG_GLOB['trusty']="*~ubuntu14.04*.deb"
     BIN_PKG_GLOB['xenial']="*~ubuntu16.04*.deb"
-    BIN_PKG_GLOB['artful']="*~ubuntu17.10*.deb"
     BIN_PKG_GLOB['bionic']="*~ubuntu18.04*.deb"
     BIN_PKG_GLOB['cosmic']="*~ubuntu18.10*.deb"
 }
