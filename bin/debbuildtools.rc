@@ -5,7 +5,7 @@
 # Global variables
 
 #DEBIAN_DISTROS="jessie stretch buster bullseye"
-DEBIAN_DISTROS="jessie stretch buster"
+DEBIAN_DISTROS="stretch buster"
 UBUNTU_DISTROS="trusty xenial bionic cosmic disco"
 
 declare -a BINARY_DISTROS=()
